@@ -4,7 +4,12 @@
 
 import requests
 import re
+import json
 
+# disable warning
+from requests.packages.urllib3.exceptions import InsecureRequestWarning,InsecurePlatformWarning
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+requests.packages.urllib3.disable_warnings(InsecurePlatformWarning)
 
 # spider, used to capture data from 12306
 class spider(object):
@@ -61,9 +66,10 @@ if __name__ == '__main__':
         "Accept-Encoding": "gzip, deflate, sdch, br",
         "Accept-Language": "en-us;q=0.5,en;q=0.3"
     }
-    payload = {'leftTicketDTO.train_date': '2016-10-17', 'leftTicketDTO.from_station': 'ZBK', 'leftTicketDTO.to_station':'HGH', 'purpose_codes':'ADULT'}
-    r = requests.get("https://kyfw.12306.cn/otn/leftTicket/init", params=payload, headers=header, verify=False)
-    print(r.content)
-    print(r.encoding)
-    trains = re.findall(r'datatran="\w+"', r.content)
-    print(trains)
+  
+    url = "https://kyfw.12306.cn/otn/leftTicket/queryC" + "?" + "leftTicketDTO.train_date=" + "2016-10-22" + "&leftTicketDTO.from_station=" + "ZBK" + "&leftTicketDTO.to_station=" + "HGH" + "&purpose_codes=" + "ADULT"
+    r = requests.get(url, headers=header, verify=False)
+    #print(r.content)
+    print(r.json())
+    #trains = re.findall(r'datatran="\w+"', r.content)
+    #print(trains)    
