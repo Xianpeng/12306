@@ -11,49 +11,9 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning,Insecure
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 requests.packages.urllib3.disable_warnings(InsecurePlatformWarning)
 
-# spider, used to capture data from 12306
-class spider(object):
-    pass
-
-class website(object):
-    def __init__(self,url, username, password):
-        self.url = url
-        self.username = username
-        self.password = password
-    
-    def login(self):
-        pass
-
-# train 
-class train(object):
-    def __init__(self, number, start, end):
-        self.train_no = number
-        self.start = start
-        self.end = end
-        
-
-# city
-class city(object):
-    def __init__(self, code):
-        self.code = code
-
-# ticket
-class ticket(object):
-    def __init__(self, number, date, passenger, start, end):
-        self.train_no = number
-        self.date = date
-        self.passenger = passenger
-        self.start = start
-        self.end = end
-
-# passenger
-class passenger(object):
-    def __init__(self, name, ID):
-        self.name = name
-        self.ID = ID
-
-
 if __name__ == '__main__':
+    
+    # 获取网页数据
     header = {
         "Host": "kyfw.12306.cn",
         "Connection": "keep-alive",
@@ -66,10 +26,16 @@ if __name__ == '__main__':
         "Accept-Encoding": "gzip, deflate, sdch, br",
         "Accept-Language": "en-us;q=0.5,en;q=0.3"
     }
-  
     url = "https://kyfw.12306.cn/otn/leftTicket/queryC" + "?" + "leftTicketDTO.train_date=" + "2016-10-22" + "&leftTicketDTO.from_station=" + "ZBK" + "&leftTicketDTO.to_station=" + "HGH" + "&purpose_codes=" + "ADULT"
     r = requests.get(url, headers=header, verify=False)
-    #print(r.content)
-    print(r.json())
-    #trains = re.findall(r'datatran="\w+"', r.content)
-    #print(trains)    
+    train = r.json();
+    
+    #分析抓取的数据
+    #print(type(train))
+    #print json.dumps(train, indent=4)
+    print("所有车次")
+    for train_data in train['data']:
+        print(train_data['queryLeftNewDTO']['station_train_code'])
+ 
+    
+   
