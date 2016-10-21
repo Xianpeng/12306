@@ -11,6 +11,23 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning,Insecure
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 requests.packages.urllib3.disable_warnings(InsecurePlatformWarning)
 
+class train(object):
+    __init__(self,number='',from_station='',to_station='',
+             date='', begin='',end='',pass_station=''):
+        self.number=number;
+        self.from_station=from_station;
+        self.to_station=to_station;
+        self.date=date;
+        self.begin=begin;
+        self.end=end;
+        self.pass_station=pass_station;
+        
+    
+
+
+
+
+
 if __name__ == '__main__':
     
     # 获取网页数据
