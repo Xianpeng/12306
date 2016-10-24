@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-#-*- coding: utf-8 -*-
+#!/usr/bin/env python3
+# coding: utf-8
 
 
 import requests
@@ -10,9 +10,6 @@ import random
 import urllib
 import datetime
 
-import sys
-reload(sys)
-sys.setdefaultencoding('utf-8')
 
 # disable warning
 from requests.packages.urllib3.exceptions import InsecureRequestWarning,InsecurePlatformWarning
@@ -115,13 +112,13 @@ class train(object):
         while i < MAX_TRIES:
             resp=s.send(prepped, verify=False);
             str=resp.content;
-            if str.find(u'train_list =') != -1:
-                print(u'查询成功');
-                str_list = str.split('=');
+            if str.decode().find(u'train_list =') != -1:
+                print('查询成功');
+                str_list = str.decode().split('=');
                 train_list=json.loads(str_list[1]);
                 # 查询成功，开始解析数据， train_list包含所有的信息
                 train_no = self.__search_train_no_by_code(train_code, train_list);
-                print(u'%s对应的NO是%s' %(train_code, train_no));
+                print('%s对应的NO是%s' %(train_code, train_no));
                 return train_no;                
             else:
                 i = i + 1;
@@ -133,7 +130,7 @@ class train(object):
     def __get_pass_code(self, module='other'):
         d = {'other':{'rand':'sjrand'}}
         if not module in d:
-            print(u'无效的 module: %s' % (module))
+            print('无效的 module: %s' % (module))
             return None;
         
         s = self.session;
@@ -146,19 +143,25 @@ class train(object):
         
         i = 0;
         while i < MAX_TRIES:
+            my_header = common_headers;
+            session_header_update(my_header, specific_headers['get_pass_code']);
+                    
+            url = '%smodule=%s&rand=%s&' % (urls['get_pass_code'], module, d[module]['rand']);
+            req=requests.Request(specific_headers['get_pass_code']['method'], url, headers=my_header);
+            prepped=s.prepare_request(req);            
             resp=s.send(prepped, verify=False, stream=True);
             cookies=requests.utils.dict_from_cookiejar(s.cookies);
 
             with open('captcha.bmp', 'wb') as fd:
                 for chunk in resp.iter_content():
                     fd.write(chunk);
-            print(u'请输入4位图片验证码(回车刷新验证码):');
-            passcode = raw_input();
+            print('请输入4位图片验证码(回车刷新验证码):');
+            passcode = input();
         
             my_header = common_headers;
             session_header_update(my_header, specific_headers['checkRandCodeAnsyn']);
             payload={'rand':d[module]['rand'], 'randCode':passcode};
-            payload=urllib.urlencode(payload);
+            payload=urllib.parse.urlencode(payload);
             url = '%s' % (urls['checkRandCodeAnsyn']);
             req=requests.Request(specific_headers['checkRandCodeAnsyn']['method'], url, cookies=cookies, headers=my_header, data=payload);
             prepped=s.prepare_request(req); 
@@ -167,11 +170,12 @@ class train(object):
             # {"validateMessagesShowId":"_validatorMessage","status":true,"httpstatus":200,"data":{"result":"1","msg":"randCodeRight"},"messages":[],"validateMessages":{}}
             obj = resp.json();
             if (obj['data']['result'] == '1'):
-                print(u'校验验证码成功')
+                print('校验验证码成功')
                 return passcode
             else:
-                print(u'校验验证码失败');
+                print('校验验证码失败');
                 i = i + 1;
+                fd.close();
                 continue  
 
         return None;
@@ -188,7 +192,7 @@ class train(object):
             date = self.date;
         
         if date is None:
-            print(u"请输入日期");
+            print("请输入日期");
             return None;
         
         pass_code = self.__get_pass_code(module='other');
@@ -228,7 +232,8 @@ class train(object):
             
 
     def print_train_data(self):
-        print(json.dumps(self.train_data, indent=4));
+        print(json.dumps(self.train_data, indent=4, ensure_ascii=False));
+        json.dumps
         
     def query_by_train_code(self, train_code,date):
         train_no = self.__train_code2no(train_code);
