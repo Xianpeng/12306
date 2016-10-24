@@ -8,13 +8,16 @@ import json
 import sys
 import random
 import urllib
+import datetime
+
+import sys
+reload(sys)
+sys.setdefaultencoding('utf-8')
 
 # disable warning
 from requests.packages.urllib3.exceptions import InsecureRequestWarning,InsecurePlatformWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 requests.packages.urllib3.disable_warnings(InsecurePlatformWarning)
-
-# Set default encoding to utf-8
 
 MAX_TRIES = 10
 
@@ -76,28 +79,29 @@ def session_header_update(old_header, new_headers):
 
 # 列车
 class train(object):
-    def __init__(self, train_no='', train_code='', date=''):
+    def __init__(self, train_no=None, train_code=None, date=None):
         self.train_no=train_no;
         self.train_code=train_code;
         self.date=date;
-        if train_no == '' and train_code != '':
-            self.train_no = self.train_code2no(train_code);
+        if train_no is None and train_code is not None:
+            self.train_no = self.__train_code2no(train_code);
         self.session=requests.Session();
+        self.train_data={};
             
     def __search_train_no_by_code(self, train_code, train_list):
         key1 = sorted(train_list.keys(),reverse=True)[0];
-        print(key1)
+
         for key2 in train_list[key1].keys():
             for one_train in train_list[key1][key2]:
                 train_code_in_list = one_train['station_train_code'].upper();
                 if train_code_in_list.find(train_code.upper()+'(') != -1:
-                    train_no = train_code_in_list = one_train['train_no']
+                    train_no = train_code_in_list = one_train['train_no'];
                     return train_no;
                     
-    def train_code2no(self, train_code=''):
-        if train_code == '':
+    def __train_code2no(self, train_code=None):
+        if train_code is None:
             train_code = self.train_code;
-        if train_code == '':
+        if train_code is None:
             print("Please input correct train code")
             return None;
         
@@ -110,29 +114,21 @@ class train(object):
         i = 0
         while i < MAX_TRIES:
             resp=s.send(prepped, verify=False);
-            # resp.content is var train_list = {}
-            #print(resp.content)
-            str=resp.text;
+            str=resp.content;
             if str.find(u'train_list =') != -1:
                 print(u'查询成功');
-                str_list = str.split('=')
+                str_list = str.split('=');
                 train_list=json.loads(str_list[1]);
-
-                for key in train_list:
-                    #print(key)
-                    pass
-                break;
+                # 查询成功，开始解析数据， train_list包含所有的信息
+                train_no = self.__search_train_no_by_code(train_code, train_list);
+                print(u'%s对应的NO是%s' %(train_code, train_no));
+                return train_no;                
             else:
                 i = i + 1;
                 print(u'查询失败,重试第%d次' %i);
-        if i == 11:
-            print(u'查询失败');
-            return None;
+                
+        return None;
         
-        # 查询成功，开始解析数据， train_list包含所有的信息
-        train_no = self.__search_train_no_by_code(train_code, train_list);
-        print(u'%s对应的NO是%s' %(train_code, train_no));
-        return train_no;
         
     def __get_pass_code(self, module='other'):
         d = {'other':{'rand':'sjrand'}}
@@ -147,6 +143,7 @@ class train(object):
         url = '%smodule=%s&rand=%s&' % (urls['get_pass_code'], module, d[module]['rand']);
         req=requests.Request(specific_headers['get_pass_code']['method'], url, headers=my_header);
         prepped=s.prepare_request(req);
+        
         i = 0;
         while i < MAX_TRIES:
             resp=s.send(prepped, verify=False, stream=True);
@@ -154,9 +151,9 @@ class train(object):
 
             with open('captcha.bmp', 'wb') as fd:
                 for chunk in resp.iter_content():
-                    fd.write(chunk)    
-            print(u'请输入4位图片验证码(回车刷新验证码):')
-            passcode = raw_input() 
+                    fd.write(chunk);
+            print(u'请输入4位图片验证码(回车刷新验证码):');
+            passcode = raw_input();
         
             my_header = common_headers;
             session_header_update(my_header, specific_headers['checkRandCodeAnsyn']);
@@ -171,8 +168,6 @@ class train(object):
             obj = resp.json();
             if (obj['data']['result'] == '1'):
                 print(u'校验验证码成功')
-                str=resp.content; 
-            
                 return passcode
             else:
                 print(u'校验验证码失败');
@@ -181,18 +176,18 @@ class train(object):
 
         return None;
     
-    def query_by_train_no(self,train_no='',date=''):
-        if train_no == '':
+    def __query_by_train_no(self,train_no=None,date=None):
+        if train_no is None:
             train_no = self.train_no;
         
-        if train_no == '':
+        if train_no is None:
             print("Please input correct train_no");
             return None;
         
-        if date == '':
+        if date is None:
             date = self.date;
         
-        if date == '':
+        if date is None:
             print(u"请输入日期");
             return None;
         
@@ -207,10 +202,27 @@ class train(object):
         prepped=s.prepare_request(req);
         resp=s.send(prepped, verify=False);
         
-        # resp.content is var train_list = {}
-        #print(resp.content)
-        str=resp.text; 
-        print(str);
+        train_info = resp.json();
+        #print(json.dumps(train_info, indent=4));
+        self.update_train_info(train_info['data']);
+        
+    def update_train_info(self, train_info):
+        d= datetime.datetime.strptime(self.date,'%Y-%m-%d');
+        
+        self.train_data['number']=train_info['data'][0]['station_train_code'];
+        self.train_data['begin']=train_info['data'][0]['start_station_name'];
+        self.train_data['end']=train_info['data'][-1]['station_name'];
+        self.train_data['date']=self.date;
+        self.train_data['start-time']=self.date + ' ' + train_info['data'][0]['start_time'] + ':00';
+        delta = datetime.timedelta(days=int(train_info['data'][-1]['arrive_day_diff']));
+        self.train_data['arrive_time']=(d+delta).strftime('%Y-%m-%d') + ' ' + train_info['data'][-1]['arrive_time'] + ':00';
+
+    def print_train_data(self):
+        print(json.dumps(self.train_data, indent=4));
+        
+    def query_by_train_code(self, train_code,date):
+        train_no = self.__train_code2no(train_code);
+        self.__query_by_train_no(train_no,date);
 
 #乘客
 class passenger(object):
@@ -222,7 +234,8 @@ class order(object):
 
 def main():
     one_train=train(train_no='49000K11840B', date='2016-10-28');
-    one_train.query_by_train_no();
+    one_train.query_by_train_code('K1184','2016-10-28');
+    one_train.print_train_data();
     
 if __name__ == '__main__':
     main();
