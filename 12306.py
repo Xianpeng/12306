@@ -16,6 +16,7 @@ requests.packages.urllib3.disable_warnings(InsecurePlatformWarning)
 
 # Set default encoding to utf-8
 
+MAX_TRIES = 10
 
 common_headers = {
     "Host": "kyfw.12306.cn",
@@ -81,6 +82,7 @@ class train(object):
         self.date=date;
         if train_no == '' and train_code != '':
             self.train_no = self.train_code2no(train_code);
+        self.session=requests.Session();
             
     def __search_train_no_by_code(self, train_code, train_list):
         key1 = sorted(train_list.keys(),reverse=True)[0];
@@ -99,14 +101,14 @@ class train(object):
             print("Please input correct train code")
             return None;
         
-        s = requests.Session();
+        s = self.session;
         my_header = common_headers;
         session_header_update(my_header, specific_headers['query_trainlist']);
         req=requests.Request(specific_headers['query_trainlist']['method'], urls['query_trainlist'], headers=my_header);
         prepped=s.prepare_request(req);
         
         i = 0
-        while i < 10:
+        while i < MAX_TRIES:
             resp=s.send(prepped, verify=False);
             # resp.content is var train_list = {}
             #print(resp.content)
@@ -138,37 +140,46 @@ class train(object):
             print(u'无效的 module: %s' % (module))
             return None;
         
-        s = requests.Session();
+        s = self.session;
         my_header = common_headers;
         session_header_update(my_header, specific_headers['get_pass_code']);
         
         url = '%smodule=%s&rand=%s&' % (urls['get_pass_code'], module, d[module]['rand']);
         req=requests.Request(specific_headers['get_pass_code']['method'], url, headers=my_header);
         prepped=s.prepare_request(req);
-        resp=s.send(prepped, verify=False);
-        cookies=requests.utils.dict_from_cookiejar(s.cookies);
-        print(cookies)
+        i = 0;
+        while i < MAX_TRIES:
+            resp=s.send(prepped, verify=False, stream=True);
+            cookies=requests.utils.dict_from_cookiejar(s.cookies);
 
-        with open('captcha.bmp', 'wb') as fd:
-            for chunk in resp.iter_content():
-                fd.write(chunk)    
-        print(u'请输入4位图片验证码(回车刷新验证码):')
-        passcode = input() 
+            with open('captcha.bmp', 'wb') as fd:
+                for chunk in resp.iter_content():
+                    fd.write(chunk)    
+            print(u'请输入4位图片验证码(回车刷新验证码):')
+            passcode = raw_input() 
         
-        my_header = common_headers;
-        session_header_update(my_header, specific_headers['checkRandCodeAnsyn']);
-        payload={'rand':d[module]['rand'], 'randcode':passcode};
-        url = '%s' % (urls['checkRandCodeAnsyn']);
-        req=requests.Request(specific_headers['checkRandCodeAnsyn']['method'], url, cookies=cookies, headers=my_header, data=payload);
-        #prepped=s2.prepare_request(req); 
-        #resp=s2.send(prepped, verify=False);
-        resp=s.post(url, data=json.dumps(payload), headers=my_header, cookies=cookies, verify=False);
+            my_header = common_headers;
+            session_header_update(my_header, specific_headers['checkRandCodeAnsyn']);
+            payload={'rand':d[module]['rand'], 'randCode':passcode};
+            payload=urllib.urlencode(payload);
+            url = '%s' % (urls['checkRandCodeAnsyn']);
+            req=requests.Request(specific_headers['checkRandCodeAnsyn']['method'], url, cookies=cookies, headers=my_header, data=payload);
+            prepped=s.prepare_request(req); 
+            resp=s.send(prepped, verify=False);
         
-        
-        print(resp.url)
-        str=resp.content; 
-        print(str);            
-        return passcode;
+            # {"validateMessagesShowId":"_validatorMessage","status":true,"httpstatus":200,"data":{"result":"1","msg":"randCodeRight"},"messages":[],"validateMessages":{}}
+            obj = resp.json();
+            if (obj['data']['result'] == '1'):
+                print(u'校验验证码成功')
+                str=resp.content; 
+            
+                return passcode
+            else:
+                print(u'校验验证码失败');
+                i = i + 1;
+                continue  
+
+        return None;
     
     def query_by_train_no(self,train_no='',date=''):
         if train_no == '':
@@ -188,7 +199,7 @@ class train(object):
         pass_code = self.__get_pass_code(module='other');
         
         # we get correct train_no now, start query
-        s = requests.Session();
+        s = self.session;
         my_header = common_headers;
         session_header_update(my_header, specific_headers['queryByTrainNo']);
         url = '%sleftTicketDTO.train_no=%s&leftTicketDTO.train_date=%s&rand_code=%s' %(urls['queryByTrainNo'],train_no,date,pass_code);
@@ -210,11 +221,8 @@ class order(object):
     pass
 
 def main():
-    one_train=train(train_code='k1181', date='2016-10-28');
+    one_train=train(train_no='49000K11840B', date='2016-10-28');
     one_train.query_by_train_no();
-    
-
-    
     
 if __name__ == '__main__':
     main();
