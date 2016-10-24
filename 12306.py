@@ -52,14 +52,19 @@ specific_headers={
         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
         'Origin': 'https://kyfw.12306.cn'
         
-    }    
+    },
+    'query_by_start_end':{
+        'Referer': 'https://kyfw.12306.cn/otn/leftTicket/init',
+        'method':'GET',        
+    }
 }
 
 urls={
     'queryByTrainNo':'https://kyfw.12306.cn/otn/queryTrainInfo/query?',
     'query_trainlist':'https://kyfw.12306.cn/otn/resources/js/query/train_list.js?scriptVersion=1.0',
     'get_pass_code':'https://kyfw.12306.cn/otn/passcodeNew/getPassCodeNew?',
-    'checkRandCodeAnsyn':'https://kyfw.12306.cn/otn/passcodeNew/checkRandCodeAnsyn'
+    'checkRandCodeAnsyn':'https://kyfw.12306.cn/otn/passcodeNew/checkRandCodeAnsyn',
+    'query_by_start_end':'https://kyfw.12306.cn/otn/leftTicket/queryC?'
 }
 
 def session_header_update(old_header, new_headers):
@@ -80,10 +85,11 @@ class train(object):
         self.train_no=train_no;
         self.train_code=train_code;
         self.date=date;
+        self.session=requests.Session();
+        self.train_data={};        
         if train_no is None and train_code is not None:
             self.train_no = self.__train_code2no(train_code);
-        self.session=requests.Session();
-        self.train_data={};
+
             
     def __search_train_no_by_code(self, train_code, train_list):
         key1 = sorted(train_list.keys(),reverse=True)[0];
@@ -235,7 +241,7 @@ class train(object):
         print(json.dumps(self.train_data, indent=4, ensure_ascii=False));
         json.dumps
         
-    def query_by_train_code(self, train_code,date):
+    def query_by_train_code(self, train_code=None,date=None):
         train_no = self.__train_code2no(train_code);
         self.__query_by_train_no(train_no,date);
 
@@ -245,12 +251,52 @@ class passenger(object):
 
 #订单
 class order(object):
-    pass
+    def __init__(self, from_station, to_station, date):
+        self.from_station=from_station;
+        self.to=to_station;
+        self.date=date;
+        self.session=requests.Session();
+        self.trains=[];
+        
+    def query(self, from_station=None,to_station=None,date=None):
+        if from_station is None:
+            from_station = self.from_station;
+        if to_station is None:
+            to_station=self.to;
+        if date is None:
+            date = self.date;
+        
+        s = self.session;
+        my_header = common_headers;
+        session_header_update(my_header, specific_headers['query_by_start_end']);
+        url = '%sleftTicketDTO.train_date=%s&leftTicketDTO.from_station=%s&leftTicketDTO.to_station=%s&purpose_codes=ADULT' %(
+            urls['query_by_start_end'],date,from_station,to_station);
+        req=requests.Request(specific_headers['query_by_start_end']['method'], url, headers=my_header);
+        prepped=s.prepare_request(req);
+        resp=s.send(prepped, verify=False);        
+        
+        objs = resp.json();
+        #print(json.dumps(objs, indent=4))
+        for train_data in objs['data']:
+            one_train={};
+            one_train['from_station_no'] = train_data['queryLeftNewDTO']['from_station_no'];
+            one_train['to_station_no'] = train_data['queryLeftNewDTO']['to_station_no'];
+            one_train['train_code']=train_data['queryLeftNewDTO']['station_train_code'];
+            train_info=train(train_code=train_data['queryLeftNewDTO']['station_train_code'], date=date);
+            train_info.query_by_train_code();
+            one_train['train_info']=train_info;
+            self.trains.append(one_train);
+        
+        print("所有车次")
+        for train_info in self.trains:
+            print(train_info['train_code']);
 
 def main():
-    one_train=train(train_no='49000K11840B', date='2016-10-28');
-    one_train.query_by_train_code('K1184','2016-10-28');
-    one_train.print_train_data();
+    #one_train=train(train_no='49000K11840B', date='2016-10-28');
+    #one_train.query_by_train_code('K1184','2016-10-28');
+    #one_train.print_train_data();
+    myorder=order('SHH','LSO','2016-10-28');
+    myorder.query();
     
 if __name__ == '__main__':
     main();
