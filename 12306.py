@@ -216,6 +216,16 @@ class train(object):
         self.train_data['start-time']=self.date + ' ' + train_info['data'][0]['start_time'] + ':00';
         delta = datetime.timedelta(days=int(train_info['data'][-1]['arrive_day_diff']));
         self.train_data['arrive_time']=(d+delta).strftime('%Y-%m-%d') + ' ' + train_info['data'][-1]['arrive_time'] + ':00';
+        self.train_data['via']=[];
+        for station in train_info['data']:
+            one_station={};
+            one_station['no']=station['station_no'];
+            one_station['name']=station['station_name'];
+            delta = datetime.timedelta(days=int(station['arrive_day_diff']));
+            one_station['arrive_time']=(d+delta).strftime('%Y-%m-%d') + ' ' + station['arrive_time'] + ':00';
+            one_station['start_time']=(d+delta).strftime('%Y-%m-%d') + ' ' + station['start_time'] + ':00';
+            self.train_data['via'].append(one_station);
+            
 
     def print_train_data(self):
         print(json.dumps(self.train_data, indent=4));
