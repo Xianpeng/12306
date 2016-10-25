@@ -87,8 +87,8 @@ class train(object):
         self.date=date;
         self.session=requests.Session();
         self.train_data={};        
-        if train_no is None and train_code is not None:
-            self.train_no = self.__train_code2no(train_code);
+        #if train_no is None and train_code is not None:
+        #    self.train_no = self.__train_code2no(train_code);
 
             
     def __search_train_no_by_code(self, train_code, train_list):
@@ -104,6 +104,7 @@ class train(object):
     def __train_code2no(self, train_code=None):
         if train_code is None:
             train_code = self.train_code;
+            
         if train_code is None:
             print("Please input correct train code")
             return None;
@@ -118,7 +119,7 @@ class train(object):
         while i < MAX_TRIES:
             resp=s.send(prepped, verify=False);
             str=resp.content;
-            if str.decode().find(u'train_list =') != -1:
+            if str.decode().find('train_list =') != -1:
                 print('查询成功');
                 str_list = str.decode().split('=');
                 train_list=json.loads(str_list[1]);
@@ -128,7 +129,7 @@ class train(object):
                 return train_no;                
             else:
                 i = i + 1;
-                print(u'查询失败,重试第%d次' %i);
+                print('查询失败,重试第%d次' %i);
                 
         return None;
         
@@ -239,7 +240,6 @@ class train(object):
 
     def print_train_data(self):
         print(json.dumps(self.train_data, indent=4, ensure_ascii=False));
-        json.dumps
         
     def query_by_train_code(self, train_code=None,date=None):
         train_no = self.__train_code2no(train_code);
